@@ -94,18 +94,17 @@ arch___clear_bit(unsigned long nr, volatile unsigned long *addr)
 	asm volatile(__ASM_SIZE(btr) " %1,%0" : : ADDR, "Ir" (nr) : "memory");
 }
 
-static __always_inline bool
-arch_clear_bit_unlock_is_negative_byte(long nr, volatile unsigned long *addr)
+static __always_inline bool arch_xor_unlock_is_negative_byte(unsigned long mask,
+		volatile unsigned long *addr)
 {
 	bool negative;
-	asm volatile(LOCK_PREFIX "andb %2,%1"
+	asm volatile(LOCK_PREFIX "xorb %2,%1"
 		CC_SET(s)
 		: CC_OUT(s) (negative), WBYTE_ADDR(addr)
-		: "ir" ((char) ~(1 << nr)) : "memory");
+		: "iq" ((char)mask) : "memory");
 	return negative;
 }
-#define arch_clear_bit_unlock_is_negative_byte                                 \
-	arch_clear_bit_unlock_is_negative_byte
+#define arch_xor_unlock_is_negative_byte arch_xor_unlock_is_negative_byte
 
 static __always_inline void
 arch___clear_bit_unlock(long nr, volatile unsigned long *addr)
@@ -251,7 +250,7 @@ static __always_inline unsigned long variable__ffs(unsigned long word)
 {
 	asm("rep; bsf %1,%0"
 		: "=r" (word)
-		: "rm" (word));
+		: ASM_INPUT_RM (word));
 	return word;
 }
 
@@ -298,7 +297,7 @@ static __always_inline unsigned long __fls(unsigned long word)
 
 	asm("bsr %1,%0"
 	    : "=r" (word)
-	    : "rm" (word));
+	    : ASM_INPUT_RM (word));
 	return word;
 }
 
@@ -321,7 +320,7 @@ static __always_inline int variable_ffs(int x)
 	 */
 	asm("bsfl %1,%0"
 	    : "=r" (r)
-	    : "rm" (x), "0" (-1));
+	    : ASM_INPUT_RM (x), "0" (-1));
 #elif defined(CONFIG_X86_CMOV)
 	asm("bsfl %1,%0\n\t"
 	    "cmovzl %2,%0"
@@ -378,7 +377,7 @@ static __always_inline int fls(unsigned int x)
 	 */
 	asm("bsrl %1,%0"
 	    : "=r" (r)
-	    : "rm" (x), "0" (-1));
+	    : ASM_INPUT_RM (x), "0" (-1));
 #elif defined(CONFIG_X86_CMOV)
 	asm("bsrl %1,%0\n\t"
 	    "cmovzl %2,%0"
@@ -417,7 +416,7 @@ static __always_inline int fls64(__u64 x)
 	 */
 	asm("bsrq %1,%q0"
 	    : "+r" (bitpos)
-	    : "rm" (x));
+	    : ASM_INPUT_RM (x));
 	return bitpos + 1;
 }
 #else
